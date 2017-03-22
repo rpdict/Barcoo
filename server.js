@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+var express = require('express');
+var app = express();
+var path = require('path');
 var WebSocketServer = require('websocket').server;
 var WebSocketClient = require('websocket').client;
 var WebSocketFrame = require('websocket').frame;
@@ -8,13 +11,18 @@ var W3CWebSocket = require('websocket').w3cwebsocket;
 var http = require('http');
 const sockets = {};
 
-var server = http.createServer(function(request, response) {
-    console.log((new Date()) + ' Received request for ' + request.url);
-    response.writeHead(404);
-    response.end();
+app.set("view engine","ejs");
+app.use('/frontend', express.static(__dirname + '/frontend'));
+
+app.get('/login', function (req, res) {
+  res.render('login', { key: req.query.id });
 });
-server.listen(3000, function() {
-    console.log((new Date()) + ' Server is listening on port 3000');
+
+var server = app.listen(3000, function () {
+  var host = server.address().address;
+  var port = server.address().port;
+
+  console.log('Example app listening at http://%s:%s', host, port);
 });
 
 wsServer = new WebSocketServer({
@@ -51,12 +59,18 @@ wsServer.on('request', function(request) {
         user = message.userId;
         sockets[user] = sockets[user] || [];
         sockets[user].push(connection);
-        sendMessages(user, {
-            data: 'newUserJoined'
-        });
+
+        if (sockets[user].length <= 2) {
+          sendMessages(user, {
+              user: user,
+              url: '127.0.0.1:3000'
+          });
+        } else {
+          sockets[user].pop();
+        }
+        console.log(sockets[user].length);
 
         function sendMessages(userId, message) {
-            // console.log(sockets);
             sockets[userId].forEach(socket => {
                 socket.send(JSON.stringify(message));
             });
