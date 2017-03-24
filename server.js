@@ -11,18 +11,20 @@ var W3CWebSocket = require('websocket').w3cwebsocket;
 var http = require('http');
 const sockets = {};
 
-app.set("view engine","ejs");
+app.set("view engine", "ejs");
 app.use('/frontend', express.static(__dirname + '/frontend'));
 
-app.get('/login', function (req, res) {
-  res.render('login', { key: req.query.id });
+app.get('/login', function(req, res) {
+    res.render('login', {
+        key: req.query.id
+    });
 });
 
-var server = app.listen(3000, function () {
-  var host = server.address().address;
-  var port = server.address().port;
+var server = app.listen(3000, function() {
+    var host = server.address().address;
+    var port = server.address().port;
 
-  console.log('Example app listening at http://%s:%s', host, port);
+    console.log('Example app listening at http://%s:%s', host, port);
 });
 
 wsServer = new WebSocketServer({
@@ -56,19 +58,35 @@ wsServer.on('request', function(request) {
     connection.on('message', function(messageString) {
         const message = JSON.parse(messageString.utf8Data);
         console.log('message', message);
-        user = message.userId;
-        sockets[user] = sockets[user] || [];
-        sockets[user].push(connection);
 
-        if (sockets[user].length <= 2) {
-          sendMessages(user, {
-              user: user,
-              url: '127.0.0.1:3000'
-          });
-        } else {
-          sockets[user].pop();
+        if (message.event === 'connect') {
+            user = message.userId;
+            sockets[user] = sockets[user] || [];
+            sockets[user].push(connection);
+
+            if (sockets[user].length > 2) {
+                sendMessages(user, {
+                    user: user,
+                    event: 'fail',
+                    message: "连接不成功"
+                });
+                sockets[user].pop();
+            } else {
+                sendMessages(user, {
+                    user: user,
+                    event: 'success',
+                    message: "连接成功"
+                });
+            }
+            console.log(sockets);
+        } else if (message.event === 'email') {
+            console.log(message.email);
+            sendMessages(user, {
+                user: user,
+                event: 'email',
+                message: message.email
+            });
         }
-        console.log(sockets[user].length);
 
         function sendMessages(userId, message) {
             sockets[userId].forEach(socket => {
