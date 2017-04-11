@@ -9,7 +9,35 @@ var WebSocketFrame = require('websocket').frame;
 var WebSocketRouter = require('websocket').router;
 var W3CWebSocket = require('websocket').w3cwebsocket;
 var http = require('http');
+var Redis = require('ioredis');
+var redis = new Redis(6379, '192.168.10.10');
 const sockets = {};
+
+function sendMessages(userId, message) {
+    sockets[userId].forEach(socket => {
+        socket.send(JSON.stringify(message));
+    });
+}
+
+redis.psubscribe('*', function(err, count) {});
+
+redis.on('pmessage', function(subscrbed, channel, message) {
+  // console.log(message);
+    message = JSON.parse(message);
+    console.log(message);
+    if (message.event === 'success'){
+      sendMessages(message.QRkey, {
+          user: message.id,
+          event: 'LoginSuccess',
+          message: "登录成功"
+      });
+    }
+    // io.emit(channel + ':' + message.event, message.data);
+});
+
+redis.on("error", function(err) {
+    console.log(err);
+});
 
 app.set("view engine", "ejs");
 app.use('/frontend', express.static(__dirname + '/frontend'));
@@ -80,17 +108,12 @@ wsServer.on('request', function(request) {
             }
             console.log(sockets);
         } else if (message.event === 'email') {
-            console.log(message.email);
-            sendMessages(user, {
+            // console.log(message.email);
+            var QRkey = message.QR;
+            sendMessages(QRkey, {
                 user: user,
                 event: 'email',
                 message: message.email
-            });
-        }
-
-        function sendMessages(userId, message) {
-            sockets[userId].forEach(socket => {
-                socket.send(JSON.stringify(message));
             });
         }
 
