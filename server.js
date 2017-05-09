@@ -10,7 +10,7 @@ var WebSocketRouter = require('websocket').router;
 var W3CWebSocket = require('websocket').w3cwebsocket;
 var http = require('http');
 var Redis = require('ioredis');
-var redis = new Redis(6379, '192.168.10.10');
+var redis = new Redis(6379, '192.168.100.10');
 const sockets = {};
 
 function sendMessages(userId, message) {
@@ -24,7 +24,7 @@ redis.psubscribe('*', function(err, count) {});
 redis.on('pmessage', function(subscrbed, channel, message) {
   // console.log(message);
     message = JSON.parse(message);
-    console.log(message);
+    console.log(channel);
     if (message.event === 'success'){
       sendMessages(message.QRkey, {
           user: message.id,
@@ -32,21 +32,20 @@ redis.on('pmessage', function(subscrbed, channel, message) {
           message: "登录成功"
       });
     }
-    // io.emit(channel + ':' + message.event, message.data);
 });
 
 redis.on("error", function(err) {
     console.log(err);
 });
 
-app.set("view engine", "ejs");
-app.use('/frontend', express.static(__dirname + '/frontend'));
-
-app.get('/login', function(req, res) {
-    res.render('login', {
-        key: req.query.id
-    });
-});
+// app.set("view engine", "ejs");
+// app.use('/frontend', express.static(__dirname + '/frontend'));
+//
+// app.get('/login', function(req, res) {
+//     res.render('login', {
+//         key: req.query.id
+//     });
+// });
 
 var server = app.listen(3000, function() {
     var host = server.address().address;
@@ -92,7 +91,7 @@ wsServer.on('request', function(request) {
             sockets[user] = sockets[user] || [];
             sockets[user].push(connection);
 
-            if (sockets[user].length > 2) {
+            if (sockets[user].length > 1) {
                 sendMessages(user, {
                     user: user,
                     event: 'fail',
@@ -116,17 +115,6 @@ wsServer.on('request', function(request) {
                 message: message.email
             });
         }
-
-        // if (message.type === 'utf8') {
-        //     console.log('Received Message: ' + message.utf8Data);
-        //     connection.sendUTF(message.utf8Data);
-        // }
-        // else if (message.type === 'binary') {
-        //     console.log('Received Binary Message of ' + message.binaryData.length + ' bytes');
-        //     connection.sendBytes(message.binaryData);
-        // }
-        // console.log('Received Message: ' + message.utf8Data);
-
     });
     connection.on('close', function(reasonCode, description) {
         console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.');
